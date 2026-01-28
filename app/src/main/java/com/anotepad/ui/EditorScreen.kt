@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -81,6 +82,12 @@ fun EditorScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { viewModel.saveNow() }) {
+                        Icon(
+                            Icons.Default.Save,
+                            contentDescription = stringResource(id = R.string.action_save)
+                        )
+                    }
                     IconButton(onClick = onOpenTemplates) {
                         Icon(
                             Icons.Default.List,
@@ -101,15 +108,6 @@ fun EditorScreen(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = when {
-                    state.isSaving -> stringResource(id = R.string.label_saving)
-                    state.lastSavedAt != null -> stringResource(id = R.string.label_saved)
-                    else -> stringResource(id = R.string.label_unsaved)
-                },
-                style = MaterialTheme.typography.labelMedium
-            )
-
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { context ->

@@ -6,6 +6,7 @@
     <string name="action_new_markdown">New markdown</string>
     <string name="action_search">Search</string>
     <string name="action_templates">Templates</string>
+    <string name="action_save">Save</string>
     <string name="action_settings">Settings</string>
     <string name="action_create_folder">Create</string>
     <string name="action_cancel">Cancel</string>

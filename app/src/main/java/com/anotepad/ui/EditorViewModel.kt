@@ -104,6 +104,12 @@ class EditorViewModel(
         pendingTemplate.value = null
     }
 
+    fun saveNow() {
+        viewModelScope.launch {
+            saveIfNeeded(_state.value.text)
+        }
+    }
+
     private fun restartAutosave() {
         autosaveJob?.cancel()
         autosaveJob = viewModelScope.launch {
