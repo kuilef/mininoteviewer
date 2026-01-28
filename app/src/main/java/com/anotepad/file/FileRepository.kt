@@ -73,6 +73,12 @@ class FileRepository(private val context: Context) {
             dir.createFile(mimeType, displayName)?.uri
         }
 
+    suspend fun createDirectory(dirTreeUri: Uri, displayName: String): Uri? =
+        withContext(Dispatchers.IO) {
+            val dir = DocumentFile.fromTreeUri(context, dirTreeUri) ?: return@withContext null
+            dir.createDirectory(displayName)?.uri
+        }
+
     suspend fun renameFile(fileUri: Uri, newName: String): Uri? = withContext(Dispatchers.IO) {
         DocumentsContract.renameDocument(resolver, fileUri, newName)
     }
@@ -97,6 +103,17 @@ class FileRepository(private val context: Context) {
         val parentId = docId.substringBeforeLast('/', docId)
         if (parentId == docId) return null
         return DocumentsContract.buildTreeDocumentUri(authority, parentId)
+    }
+
+    fun getTreeDisplayPath(treeUri: Uri): String {
+        if (!DocumentsContract.isTreeUri(treeUri)) return treeUri.toString()
+        val docId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull()
+            ?: return treeUri.toString()
+        val parts = docId.split(":", limit = 2)
+        val volume = parts.getOrNull(0)?.ifBlank { "primary" } ?: "primary"
+        val relative = parts.getOrNull(1).orEmpty().trimStart('/')
+        val base = if (volume == "primary") "/storage/emulated/0" else "/storage/$volume"
+        return if (relative.isBlank()) base else "$base/$relative"
     }
 
     private fun toTreeUri(uri: Uri): Uri {

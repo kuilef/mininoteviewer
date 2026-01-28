@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Create
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Refresh
@@ -26,6 +28,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -39,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.anotepad.R
 
@@ -54,6 +58,7 @@ fun BrowserScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showNewDialog by remember { mutableStateOf(false) }
+    var showNewFolderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -75,6 +80,15 @@ fun BrowserScreen(
                         Icon(
                             Icons.Default.FolderOpen,
                             contentDescription = stringResource(id = R.string.action_pick_folder)
+                        )
+                    }
+                    IconButton(
+                        onClick = { showNewFolderDialog = true },
+                        enabled = state.currentDirUri != null
+                    ) {
+                        Icon(
+                            Icons.Default.CreateNewFolder,
+                            contentDescription = stringResource(id = R.string.action_new_folder)
                         )
                     }
                     IconButton(onClick = { viewModel.refresh() }) {
@@ -126,67 +140,83 @@ fun BrowserScreen(
                 )
             }
 
-            state.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = stringResource(id = R.string.label_searching))
-                }
-            }
-
-            state.entries.isEmpty() -> {
-                EmptyState(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    message = stringResource(id = R.string.label_empty_folder),
-                    actionLabel = stringResource(id = R.string.action_pick_folder),
-                    onAction = onPickDirectory
-                )
-            }
-
             else -> {
-                Column(modifier = Modifier.padding(padding)) {
-                    state.currentDirUri?.let {
-                        Text(
-                            text = stringResource(id = R.string.label_current_folder),
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
+                    state.currentDirLabel?.let { path ->
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.label_current_folder),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                            Text(
+                                text = path,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(state.entries) { entry ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        if (entry.isDirectory) {
-                                            viewModel.navigateInto(entry.uri)
-                                        } else {
-                                            state.currentDirUri?.let { dir ->
-                                                onOpenFile(entry.uri, dir)
-                                            }
-                                        }
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    when {
+                        state.isLoading -> {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = if (entry.isDirectory) {
-                                        Icons.Default.FolderOpen // или Folder, если хотите отдельную иконку
-                                    } else {
-                                        Icons.Default.InsertDriveFile
-                                    },
-                                    contentDescription = null
-                                )
-                                Text(
-                                    text = entry.name,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
+                                Text(text = stringResource(id = R.string.label_searching))
+                            }
+                        }
+
+                        state.entries.isEmpty() -> {
+                            EmptyState(
+                                modifier = Modifier.fillMaxSize(),
+                                message = stringResource(id = R.string.label_empty_folder),
+                                actionLabel = stringResource(id = R.string.action_pick_folder),
+                                onAction = onPickDirectory
+                            )
+                        }
+
+                        else -> {
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                items(state.entries) { entry ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                if (entry.isDirectory) {
+                                                    viewModel.navigateInto(entry.uri)
+                                                } else {
+                                                    state.currentDirUri?.let { dir ->
+                                                        onOpenFile(entry.uri, dir)
+                                                    }
+                                                }
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (entry.isDirectory) {
+                                                Icons.Default.FolderOpen // или Folder, если хотите отдельную иконку
+                                            } else {
+                                                Icons.Default.InsertDriveFile
+                                            },
+                                            contentDescription = null,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Text(
+                                            text = entry.name,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -201,6 +231,16 @@ fun BrowserScreen(
             onSelect = { extension ->
                 state.currentDirUri?.let { onNewFile(it, extension) }
                 showNewDialog = false
+            }
+        )
+    }
+
+    if (showNewFolderDialog) {
+        NewFolderDialog(
+            onDismiss = { showNewFolderDialog = false },
+            onCreate = { name ->
+                viewModel.createDirectory(name)
+                showNewFolderDialog = false
             }
         )
     }
@@ -243,6 +283,39 @@ private fun NewFileDialog(
                     Text(text = stringResource(id = R.string.action_new_markdown))
                 }
             }
+        }
+    )
+}
+
+@Composable
+private fun NewFolderDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            Button(
+                onClick = { onCreate(name) },
+                enabled = name.trim().isNotEmpty()
+            ) {
+                Text(text = stringResource(id = R.string.action_create_folder))
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text(text = stringResource(id = R.string.action_cancel))
+            }
+        },
+        title = { Text(text = stringResource(id = R.string.label_new_folder)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                label = { Text(text = stringResource(id = R.string.hint_folder_name)) }
+            )
         }
     )
 }

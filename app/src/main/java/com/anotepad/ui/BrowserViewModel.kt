@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 data class BrowserState(
     val rootUri: Uri? = null,
     val currentDirUri: Uri? = null,
+    val currentDirLabel: String? = null,
     val dirStack: List<Uri> = emptyList(),
     val entries: List<DocumentNode> = emptyList(),
     val isLoading: Boolean = false
@@ -36,7 +37,14 @@ class BrowserViewModel(
                 _state.update { it.copy(rootUri = root) }
                 val currentDir = _state.value.currentDirUri
                 if (root == null) {
-                    _state.update { state -> state.copy(currentDirUri = null, dirStack = emptyList(), entries = emptyList()) }
+                    _state.update { state ->
+                        state.copy(
+                            currentDirUri = null,
+                            currentDirLabel = null,
+                            dirStack = emptyList(),
+                            entries = emptyList()
+                        )
+                    }
                 } else if (root != prevRoot || currentDir == null) {
                     setRoot(root)
                 }
@@ -45,12 +53,13 @@ class BrowserViewModel(
     }
 
     fun setRoot(root: Uri) {
-        _state.update { it.copy(rootUri = root, currentDirUri = root, dirStack = listOf(root)) }
+        updateCurrentDir(root, listOf(root))
         refresh()
     }
 
     fun navigateInto(dirUri: Uri) {
-        _state.update { it.copy(currentDirUri = dirUri, dirStack = it.dirStack + dirUri) }
+        val newStack = _state.value.dirStack + dirUri
+        updateCurrentDir(dirUri, newStack)
         refresh()
     }
 
@@ -58,7 +67,7 @@ class BrowserViewModel(
         val stack = _state.value.dirStack
         if (stack.size <= 1) return
         val newStack = stack.dropLast(1)
-        _state.update { it.copy(currentDirUri = newStack.last(), dirStack = newStack) }
+        updateCurrentDir(newStack.last(), newStack)
         refresh()
     }
 
@@ -68,6 +77,26 @@ class BrowserViewModel(
             _state.update { it.copy(isLoading = true) }
             val entries = fileRepository.listChildren(dirUri)
             _state.update { it.copy(entries = entries, isLoading = false) }
+        }
+    }
+
+    fun createDirectory(name: String) {
+        val dirUri = _state.value.currentDirUri ?: return
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            fileRepository.createDirectory(dirUri, trimmed)
+            refresh()
+        }
+    }
+
+    private fun updateCurrentDir(dirUri: Uri, stack: List<Uri>) {
+        _state.update {
+            it.copy(
+                currentDirUri = dirUri,
+                currentDirLabel = fileRepository.getTreeDisplayPath(dirUri),
+                dirStack = stack
+            )
         }
     }
 }
