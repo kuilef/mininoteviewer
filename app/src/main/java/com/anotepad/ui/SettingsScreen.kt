@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.anotepad.data.FileSortOrder
 import com.anotepad.R
 import kotlin.math.roundToInt
 
@@ -66,6 +67,23 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                 valueRange = 12f..24f,
                 onCommit = viewModel::setBrowserFontSizeSp
             )
+            Text(
+                text = stringResource(id = R.string.label_file_sort_order),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(top = 12.dp, bottom = 8.dp)
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SortOption(
+                    label = stringResource(id = R.string.label_sort_name_desc),
+                    selected = prefs.fileSortOrder == FileSortOrder.NAME_DESC,
+                    onSelect = { viewModel.setFileSortOrder(FileSortOrder.NAME_DESC) }
+                )
+                SortOption(
+                    label = stringResource(id = R.string.label_sort_name_asc),
+                    selected = prefs.fileSortOrder == FileSortOrder.NAME_ASC,
+                    onSelect = { viewModel.setFileSortOrder(FileSortOrder.NAME_ASC) }
+                )
+            }
 
             SectionHeader(text = stringResource(id = R.string.label_settings_section_editor))
             SettingRow(
@@ -217,6 +235,23 @@ private fun ExtensionOption(
         verticalAlignment = Alignment.CenterVertically
     ) {
         RadioButton(selected = selected, onClick = { onSelect(value) })
+        Text(text = label)
+    }
+}
+
+@Composable
+private fun SortOption(
+    label: String,
+    selected: Boolean,
+    onSelect: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onSelect)
         Text(text = label)
     }
 }

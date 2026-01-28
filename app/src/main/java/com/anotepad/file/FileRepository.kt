@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
+import com.anotepad.data.FileSortOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -15,7 +16,8 @@ import java.util.Locale
 class FileRepository(private val context: Context) {
     private val resolver: ContentResolver = context.contentResolver
 
-    suspend fun listChildren(dirTreeUri: Uri): List<DocumentNode> = withContext(Dispatchers.IO) {
+    suspend fun listChildren(dirTreeUri: Uri, sortOrder: FileSortOrder): List<DocumentNode> =
+        withContext(Dispatchers.IO) {
         val dir = DocumentFile.fromTreeUri(context, dirTreeUri) ?: return@withContext emptyList()
         val children = dir.listFiles().mapNotNull { file ->
             val name = file.name ?: return@mapNotNull null
@@ -25,8 +27,9 @@ class FileRepository(private val context: Context) {
         }
         val (dirs, files) = children.partition { it.isDirectory }
         val filteredFiles = files.filter { isSupportedExtension(it.name) }
-        dirs.sortedBy { it.name.lowercase(Locale.getDefault()) } +
-            filteredFiles.sortedBy { it.name.lowercase(Locale.getDefault()) }
+        val sortedDirs = sortByName(dirs, sortOrder)
+        val sortedFiles = sortByName(filteredFiles, sortOrder)
+        sortedDirs + sortedFiles
     }
 
     suspend fun listNamesInDirectory(dirTreeUri: Uri): Set<String> = withContext(Dispatchers.IO) {
@@ -120,5 +123,13 @@ class FileRepository(private val context: Context) {
         val authority = uri.authority ?: return uri
         val docId = DocumentsContract.getDocumentId(uri)
         return DocumentsContract.buildTreeDocumentUri(authority, docId)
+    }
+
+    private fun sortByName(entries: List<DocumentNode>, order: FileSortOrder): List<DocumentNode> {
+        val comparator = compareBy<DocumentNode> { it.name.lowercase(Locale.getDefault()) }
+        return when (order) {
+            FileSortOrder.NAME_DESC -> entries.sortedWith(comparator.reversed())
+            FileSortOrder.NAME_ASC -> entries.sortedWith(comparator)
+        }
     }
 }

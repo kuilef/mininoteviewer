@@ -3,6 +3,7 @@ package com.anotepad.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.anotepad.data.AppPreferences
+import com.anotepad.data.FileSortOrder
 import com.anotepad.data.PreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,5 +64,9 @@ class SettingsViewModel(private val preferencesRepository: PreferencesRepository
 
     fun setDefaultFileExtension(extension: String) {
         viewModelScope.launch { preferencesRepository.setDefaultFileExtension(extension) }
+    }
+
+    fun setFileSortOrder(order: FileSortOrder) {
+        viewModelScope.launch { preferencesRepository.setFileSortOrder(order) }
     }
 }

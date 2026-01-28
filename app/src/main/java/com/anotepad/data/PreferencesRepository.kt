@@ -28,6 +28,8 @@ class PreferencesRepository(private val context: Context) {
         val AUTO_INSERT_TEMPLATE_ENABLED = booleanPreferencesKey("auto_insert_template_enabled")
         val AUTO_INSERT_TEMPLATE = stringPreferencesKey("auto_insert_template")
         val DEFAULT_FILE_EXTENSION = stringPreferencesKey("default_file_extension")
+        val FILE_SORT_ORDER = stringPreferencesKey("file_sort_order")
+        val BROWSER_VIEW_MODE = stringPreferencesKey("browser_view_mode")
     }
 
     val preferencesFlow: Flow<AppPreferences> = context.dataStore.data.map { prefs ->
@@ -36,6 +38,8 @@ class PreferencesRepository(private val context: Context) {
             ?.lowercase(Locale.US)
             ?.let { if (it == "md") "md" else "txt" }
             ?: "txt"
+        val fileSortOrder = FileSortOrder.fromId(prefs[Keys.FILE_SORT_ORDER])
+        val browserViewMode = BrowserViewMode.fromId(prefs[Keys.BROWSER_VIEW_MODE])
         AppPreferences(
             rootTreeUri = prefs[Keys.ROOT_URI],
             autoLinkWeb = prefs[Keys.AUTO_LINK_WEB] ?: false,
@@ -45,6 +49,8 @@ class PreferencesRepository(private val context: Context) {
             autoSaveDebounceMs = prefs[Keys.AUTO_SAVE_DEBOUNCE] ?: 1200L,
             autoSaveEnabled = prefs[Keys.AUTO_SAVE_ENABLED] ?: true,
             browserFontSizeSp = prefs[Keys.BROWSER_FONT_SIZE_SP] ?: 14f,
+            fileSortOrder = fileSortOrder,
+            browserViewMode = browserViewMode,
             editorFontSizeSp = prefs[Keys.EDITOR_FONT_SIZE_SP] ?: 16f,
             autoInsertTemplateEnabled = prefs[Keys.AUTO_INSERT_TEMPLATE_ENABLED] ?: true,
             autoInsertTemplate = prefs[Keys.AUTO_INSERT_TEMPLATE] ?: "yyyy-MM-dd",
@@ -105,6 +111,14 @@ class PreferencesRepository(private val context: Context) {
     suspend fun setDefaultFileExtension(extension: String) {
         val normalized = extension.trim().lowercase(Locale.US).let { if (it == "md") "md" else "txt" }
         context.dataStore.edit { it[Keys.DEFAULT_FILE_EXTENSION] = normalized }
+    }
+
+    suspend fun setFileSortOrder(order: FileSortOrder) {
+        context.dataStore.edit { it[Keys.FILE_SORT_ORDER] = order.id }
+    }
+
+    suspend fun setBrowserViewMode(mode: BrowserViewMode) {
+        context.dataStore.edit { it[Keys.BROWSER_VIEW_MODE] = mode.id }
     }
 
     internal val dataStore = context.dataStore

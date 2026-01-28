@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Create
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -34,18 +37,27 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anotepad.R
+import com.anotepad.data.BrowserViewMode
+import com.anotepad.file.DocumentNode
+import kotlinx.coroutines.flow.collect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +71,12 @@ fun BrowserScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showNewFolderDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.viewMode, state.feedResetSignal) {
+        if (state.viewMode == BrowserViewMode.FEED) {
+            viewModel.ensureFeedLoaded()
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -104,6 +122,22 @@ fun BrowserScreen(
                                 contentDescription = stringResource(id = R.string.action_search)
                             )
                         }
+                    }
+                    IconButton(onClick = { viewModel.toggleViewMode() }) {
+                        val icon = if (state.viewMode == BrowserViewMode.FEED) {
+                            Icons.Default.List
+                        } else {
+                            Icons.Default.Article
+                        }
+                        val description = if (state.viewMode == BrowserViewMode.FEED) {
+                            stringResource(id = R.string.action_toggle_list)
+                        } else {
+                            stringResource(id = R.string.action_toggle_feed)
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = description
+                        )
                     }
                     IconButton(onClick = onSettings) {
                         Icon(
@@ -192,37 +226,66 @@ fun BrowserScreen(
                             val entryTextStyle = MaterialTheme.typography.bodyMedium.copy(
                                 fontSize = state.fileListFontSizeSp.sp
                             )
-                            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                items(state.entries) { entry ->
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                if (entry.isDirectory) {
-                                                    viewModel.navigateInto(entry.uri)
-                                                } else {
-                                                    state.currentDirUri?.let { dir ->
-                                                        onOpenFile(entry.uri, dir)
+                            if (state.viewMode == BrowserViewMode.FEED) {
+                                val hasFiles = state.entries.any { !it.isDirectory }
+                                if (!hasFiles) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = stringResource(id = R.string.label_no_notes))
+                                    }
+                                } else {
+                                    FeedList(
+                                        items = state.feedItems,
+                                        hasMore = state.feedHasMore,
+                                        loading = state.feedLoading,
+                                        fontSizeSp = state.fileListFontSizeSp,
+                                        initialIndex = state.feedScrollIndex,
+                                        initialOffset = state.feedScrollOffset,
+                                        resetSignal = state.feedResetSignal,
+                                        onLoadMore = viewModel::loadMoreFeed,
+                                        onScrollChange = viewModel::updateFeedScroll,
+                                        onOpenFile = { node ->
+                                            state.currentDirUri?.let { dir ->
+                                                onOpenFile(node.uri, dir)
+                                            }
+                                        }
+                                    )
+                                }
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(state.entries) { entry ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    if (entry.isDirectory) {
+                                                        viewModel.navigateInto(entry.uri)
+                                                    } else {
+                                                        state.currentDirUri?.let { dir ->
+                                                            onOpenFile(entry.uri, dir)
+                                                        }
                                                     }
                                                 }
-                                            }
-                                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (entry.isDirectory) {
-                                                Icons.Default.FolderOpen // или Folder, если хотите отдельную иконку
-                                            } else {
-                                                Icons.Default.InsertDriveFile
-                                            },
-                                            contentDescription = null,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Text(
-                                            text = entry.name,
-                                            style = entryTextStyle
-                                        )
+                                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (entry.isDirectory) {
+                                                    Icons.Default.FolderOpen // или Folder, если хотите отдельную иконку
+                                                } else {
+                                                    Icons.Default.InsertDriveFile
+                                                },
+                                                contentDescription = null,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = entry.name,
+                                                style = entryTextStyle
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -294,4 +357,90 @@ private fun NewFolderDialog(
             )
         }
     )
+}
+
+@Composable
+private fun FeedList(
+    items: List<FeedItem>,
+    hasMore: Boolean,
+    loading: Boolean,
+    fontSizeSp: Float,
+    initialIndex: Int,
+    initialOffset: Int,
+    resetSignal: Int,
+    onLoadMore: () -> Unit,
+    onScrollChange: (Int, Int) -> Unit,
+    onOpenFile: (DocumentNode) -> Unit
+) {
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialIndex,
+        initialFirstVisibleItemScrollOffset = initialOffset
+    )
+    val textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = fontSizeSp.sp)
+
+    LaunchedEffect(resetSignal) {
+        listState.scrollToItem(0, 0)
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> onScrollChange(index, offset) }
+    }
+
+    LaunchedEffect(listState, hasMore, loading, items.size) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { lastVisible ->
+                if (lastVisible != null && items.isNotEmpty() && hasMore && !loading &&
+                    lastVisible >= items.size - 3
+                ) {
+                    onLoadMore()
+                }
+            }
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(items, key = { it.node.uri.toString() }) { item ->
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenFile(item.node) }
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Text(text = buildFeedAnnotatedText(item.text), style = textStyle)
+                Text(
+                    text = "----",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+        }
+        if (loading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = stringResource(id = R.string.label_loading_more))
+                }
+            }
+        }
+    }
+}
+
+private fun buildFeedAnnotatedText(text: String) = buildAnnotatedString {
+    val normalized = text.replace("\r\n", "\n")
+    val parts = normalized.split("\n", limit = 2)
+    val firstLine = parts.getOrElse(0) { "" }
+    val rest = if (parts.size > 1) "\n${parts[1]}" else ""
+    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+        append(firstLine)
+    }
+    if (rest.isNotEmpty()) {
+        append(rest)
+    }
 }
