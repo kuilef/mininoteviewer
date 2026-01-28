@@ -29,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -59,7 +58,6 @@ fun BrowserScreen(
     onSettings: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
-    var showNewDialog by remember { mutableStateOf(false) }
     var showNewFolderDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -121,7 +119,12 @@ fun BrowserScreen(
         },
         floatingActionButton = {
             if (state.currentDirUri != null) {
-                FloatingActionButton(onClick = { showNewDialog = true }) {
+                FloatingActionButton(
+                    onClick = {
+                        val extension = state.defaultFileExtension.ifBlank { "txt" }
+                        onNewFile(state.currentDirUri, extension)
+                    }
+                ) {
                     Icon(
                         Icons.Default.Create,
                         contentDescription = stringResource(id = R.string.action_new_note)
@@ -230,17 +233,6 @@ fun BrowserScreen(
         }
     }
 
-    if (showNewDialog) {
-        NewFileDialog(
-            defaultExtension = state.defaultFileExtension,
-            onDismiss = { showNewDialog = false },
-            onSelect = { extension ->
-                state.currentDirUri?.let { onNewFile(it, extension) }
-                showNewDialog = false
-            }
-        )
-    }
-
     if (showNewFolderDialog) {
         NewFolderDialog(
             onDismiss = { showNewFolderDialog = false },
@@ -268,66 +260,6 @@ private fun EmptyState(
         Button(onClick = onAction, modifier = Modifier.padding(top = 16.dp)) {
             Text(text = actionLabel)
         }
-    }
-}
-
-@Composable
-private fun NewFileDialog(
-    defaultExtension: String,
-    onDismiss: () -> Unit,
-    onSelect: (String) -> Unit
-) {
-    var selected by remember(defaultExtension) {
-        mutableStateOf(defaultExtension.ifBlank { "txt" })
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            Button(onClick = { onSelect(selected) }) {
-                Text(text = stringResource(id = android.R.string.ok))
-            }
-        },
-        dismissButton = {
-            Button(onClick = onDismiss) {
-                Text(text = stringResource(id = R.string.action_cancel))
-            }
-        },
-        title = { Text(text = stringResource(id = R.string.label_create_note)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = stringResource(id = R.string.label_extension))
-                ExtensionOption(
-                    label = stringResource(id = R.string.label_extension_txt),
-                    value = "txt",
-                    selected = selected == "txt",
-                    onSelect = { selected = it }
-                )
-                ExtensionOption(
-                    label = stringResource(id = R.string.label_extension_md),
-                    value = "md",
-                    selected = selected == "md",
-                    onSelect = { selected = it }
-                )
-            }
-        }
-    )
-}
-
-@Composable
-private fun ExtensionOption(
-    label: String,
-    value: String,
-    selected: Boolean,
-    onSelect: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onSelect(value) },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(selected = selected, onClick = { onSelect(value) })
-        Text(text = label)
     }
 }
 
