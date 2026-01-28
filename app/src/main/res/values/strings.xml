@@ -1,11 +1,14 @@
 <resources>
     <string name="app_name">anotepad</string>
     <string name="action_pick_folder">Pick folder</string>
+    <string name="action_new_folder">New folder</string>
     <string name="action_new_note">New note</string>
     <string name="action_new_markdown">New markdown</string>
     <string name="action_search">Search</string>
     <string name="action_templates">Templates</string>
     <string name="action_settings">Settings</string>
+    <string name="action_create_folder">Create</string>
+    <string name="action_cancel">Cancel</string>
     <string name="action_back">Back</string>
     <string name="action_refresh">Refresh</string>
     <string name="label_current_folder">Current folder</string>
@@ -36,4 +39,6 @@
     <string name="label_template_number">Number</string>
     <string name="label_create_note">Create note</string>
     <string name="label_extension">Extension</string>
+    <string name="label_new_folder">New folder</string>
+    <string name="hint_folder_name">Folder name</string>
 </resources>
