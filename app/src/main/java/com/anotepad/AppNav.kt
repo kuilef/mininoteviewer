@@ -82,8 +82,8 @@ fun AppNav(deps: AppDependencies) {
 
             LaunchedEffect(fileArg, dirArg, extArg) {
                 viewModel.load(
-                    fileUri = fileArg?.takeIf { it.isNotBlank() }?.let { Uri.parse(Uri.decode(it)) },
-                    dirUri = dirArg?.takeIf { it.isNotBlank() }?.let { Uri.parse(Uri.decode(it)) },
+                    fileUri = parseNavUriArg(fileArg),
+                    dirUri = parseNavUriArg(dirArg),
                     newFileExtension = extArg ?: "txt"
                 )
             }
@@ -109,7 +109,7 @@ fun AppNav(deps: AppDependencies) {
             val dirArg = backStackEntry.arguments?.getString("dir")
             val viewModel: com.anotepad.ui.SearchViewModel = viewModel(factory = factory)
             LaunchedEffect(dirArg) {
-                viewModel.setBaseDir(dirArg?.takeIf { it.isNotBlank() }?.let { Uri.parse(Uri.decode(it)) })
+                viewModel.setBaseDir(parseNavUriArg(dirArg))
             }
             SearchScreen(
                 viewModel = viewModel,
@@ -144,4 +144,9 @@ fun AppNav(deps: AppDependencies) {
 
 private fun encodeUri(uri: Uri?): String {
     return Uri.encode(uri?.toString() ?: "")
+}
+
+private fun parseNavUriArg(value: String?): Uri? {
+    val normalized = value?.takeIf { it.isNotBlank() } ?: return null
+    return Uri.parse(normalized)
 }
