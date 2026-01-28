@@ -5,6 +5,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
+import android.view.Gravity
 import android.widget.EditText
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.util.LinkifyCompat
 import com.anotepad.R
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,6 +118,12 @@ fun EditorScreen(
                         setBackgroundColor(backgroundColor)
                         setTextColor(textColor)
                         setPadding(12, 12, 12, 12)
+                        gravity = Gravity.TOP or Gravity.START
+                        setSingleLine(false)
+                        setHorizontallyScrolling(false)
+                        val density = context.resources.displayMetrics.density
+                        scrollBarSize = (2f * density).roundToInt()
+                        isScrollbarFadingEnabled = true
                         movementMethod = LinkMovementMethod.getInstance()
                         addTextChangedListener(object : TextWatcher {
                             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
@@ -141,6 +149,9 @@ fun EditorScreen(
                         editText.setTextColor(textColor)
                     }
                     editText.setBackgroundColor(backgroundColor)
+                    val availableHeight = editText.height - editText.paddingTop - editText.paddingBottom
+                    val contentHeight = editText.lineCount * editText.lineHeight
+                    editText.isVerticalScrollBarEnabled = availableHeight > 0 && contentHeight > availableHeight
                     applyLinkify(editText, state.autoLinkWeb, state.autoLinkEmail, state.autoLinkTel)
                 }
             )
