@@ -192,6 +192,32 @@ class BrowserViewModel(
         _state.update { it.copy(feedScrollIndex = index, feedScrollOffset = offset) }
     }
 
+    fun applyEditorUpdate(originalUri: Uri?, currentUri: Uri?, dirUri: Uri?) {
+        val currentDir = _state.value.currentDirUri ?: return
+        if (dirUri != null && dirUri != currentDir) return
+        val targetUri = currentUri ?: return
+        val matchUri = originalUri ?: targetUri
+        viewModelScope.launch {
+            val name = fileRepository.getDisplayName(targetUri) ?: return@launch
+            val updatedNode = DocumentNode(name = name, uri = targetUri, isDirectory = false)
+            val entries = _state.value.entries
+            val matchIndex = entries.indexOfFirst { !it.isDirectory && it.uri == matchUri }
+            val currentIndex = if (matchIndex >= 0 || matchUri == targetUri) {
+                -1
+            } else {
+                entries.indexOfFirst { !it.isDirectory && it.uri == targetUri }
+            }
+            val indexToUpdate = if (matchIndex >= 0) matchIndex else currentIndex
+            val updatedEntries = if (indexToUpdate >= 0) {
+                entries.toMutableList().apply { set(indexToUpdate, updatedNode) }
+            } else {
+                entries + updatedNode
+            }
+            _state.update { it.copy(entries = updatedEntries) }
+            updateFeedForEditedFile(matchUri, updatedNode)
+        }
+    }
+
     private fun updateFeedSource(entries: List<DocumentNode>) {
         feedGeneration += 1
         feedFiles = entries.filterNot { it.isDirectory }
@@ -207,6 +233,38 @@ class BrowserViewModel(
         }
         if (_state.value.viewMode == BrowserViewMode.FEED) {
             ensureFeedLoaded()
+        }
+    }
+
+    private suspend fun updateFeedForEditedFile(matchUri: Uri, updatedNode: DocumentNode) {
+        val matchIndex = feedFiles.indexOfFirst { it.uri == matchUri }
+        val currentIndex = if (matchIndex >= 0 || matchUri == updatedNode.uri) {
+            -1
+        } else {
+            feedFiles.indexOfFirst { it.uri == updatedNode.uri }
+        }
+        val indexToUpdate = if (matchIndex >= 0) matchIndex else currentIndex
+        feedFiles = if (indexToUpdate >= 0) {
+            feedFiles.toMutableList().apply { set(indexToUpdate, updatedNode) }
+        } else {
+            feedFiles + updatedNode
+        }
+        val feedItems = _state.value.feedItems
+        val matchItemIndex = feedItems.indexOfFirst { it.node.uri == matchUri }
+        val currentItemIndex = if (matchItemIndex >= 0 || matchUri == updatedNode.uri) {
+            -1
+        } else {
+            feedItems.indexOfFirst { it.node.uri == updatedNode.uri }
+        }
+        val itemIndex = if (matchItemIndex >= 0) matchItemIndex else currentItemIndex
+        if (itemIndex >= 0) {
+            val updatedText = fileRepository.readText(updatedNode.uri)
+            val updatedItems = feedItems.toMutableList().apply {
+                set(itemIndex, FeedItem(node = updatedNode, text = updatedText))
+            }
+            _state.update { it.copy(feedItems = updatedItems, feedHasMore = updatedItems.size < feedFiles.size) }
+        } else {
+            _state.update { it.copy(feedHasMore = it.feedItems.size < feedFiles.size) }
         }
     }
 }

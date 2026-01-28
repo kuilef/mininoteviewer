@@ -33,6 +33,12 @@ data class EditorState(
     val editorFontSizeSp: Float = 16f
 )
 
+data class EditorSaveResult(
+    val originalUri: Uri?,
+    val currentUri: Uri?,
+    val dirUri: Uri?
+)
+
 class EditorViewModel(
     private val preferencesRepository: PreferencesRepository,
     private val fileRepository: FileRepository
@@ -51,6 +57,7 @@ class EditorViewModel(
     private var autoSaveEnabled = true
     private var autoInsertTemplateEnabled = true
     private var autoInsertTemplate = "yyyy-MM-dd"
+    private var openedFileUri: Uri? = null
 
     init {
         viewModelScope.launch {
@@ -77,6 +84,7 @@ class EditorViewModel(
     fun load(fileUri: Uri?, dirUri: Uri?, newFileExtension: String) {
         viewModelScope.launch {
             isLoaded = false
+            openedFileUri = fileUri
             val text = if (fileUri != null) fileRepository.readText(fileUri) else ""
             val fileName = fileUri?.let { uri ->
                 fileRepository.getDisplayName(uri) ?: ""
@@ -128,6 +136,17 @@ class EditorViewModel(
         viewModelScope.launch {
             saveIfNeeded(_state.value.text)
         }
+    }
+
+    suspend fun saveAndGetResult(): EditorSaveResult? {
+        saveIfNeeded(_state.value.text)
+        val state = _state.value
+        val currentUri = state.fileUri ?: return null
+        return EditorSaveResult(
+            originalUri = openedFileUri,
+            currentUri = currentUri,
+            dirUri = state.dirUri
+        )
     }
 
     private fun restartAutosave() {
@@ -216,8 +235,8 @@ class EditorViewModel(
         var text = input.trim()
         text = text.replace(Regex("^[\\s\\u3000]+"), "")
         text = text.replace(Regex("[\\s\\u3000]+$"), "")
-        text = text.replace(Regex("[/:,;*?\"<>|]"), ".")
-        text = text.replace("\\\\", ".")
+        text = text.replace(Regex("[/:,;*?\"<>|]"), "")
+        text = text.replace("\\\\", "")
         return text
     }
 }

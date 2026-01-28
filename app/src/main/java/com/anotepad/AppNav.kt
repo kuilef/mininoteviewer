@@ -20,6 +20,7 @@ import com.anotepad.ui.EditorScreen
 import com.anotepad.ui.SearchScreen
 import com.anotepad.ui.SettingsScreen
 import com.anotepad.ui.TemplatesScreen
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 private const val ROUTE_BROWSER = "browser"
@@ -27,6 +28,9 @@ private const val ROUTE_EDITOR = "editor"
 private const val ROUTE_SEARCH = "search"
 private const val ROUTE_TEMPLATES = "templates"
 private const val ROUTE_SETTINGS = "settings"
+private const val RESULT_EDITED_ORIGINAL_URI = "edited_original_uri"
+private const val RESULT_EDITED_CURRENT_URI = "edited_current_uri"
+private const val RESULT_EDITED_DIR_URI = "edited_dir_uri"
 
 @Composable
 fun AppNav(deps: AppDependencies) {
@@ -50,6 +54,24 @@ fun AppNav(deps: AppDependencies) {
     NavHost(navController = navController, startDestination = ROUTE_BROWSER) {
         composable(ROUTE_BROWSER) {
             val viewModel: com.anotepad.ui.BrowserViewModel = viewModel(factory = factory)
+            val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+            val editedFlow = savedStateHandle?.getStateFlow<String?>(RESULT_EDITED_CURRENT_URI, null)
+            LaunchedEffect(editedFlow) {
+                val handle = savedStateHandle ?: return@LaunchedEffect
+                editedFlow?.collectLatest { currentUriValue ->
+                    if (currentUriValue.isNullOrBlank()) return@collectLatest
+                    val originalValue = handle.get<String>(RESULT_EDITED_ORIGINAL_URI)
+                    val dirValue = handle.get<String>(RESULT_EDITED_DIR_URI)
+                    viewModel.applyEditorUpdate(
+                        originalUri = parseNavUriArg(originalValue),
+                        currentUri = parseNavUriArg(currentUriValue),
+                        dirUri = parseNavUriArg(dirValue)
+                    )
+                    handle.remove<String>(RESULT_EDITED_ORIGINAL_URI)
+                    handle.remove<String>(RESULT_EDITED_CURRENT_URI)
+                    handle.remove<String>(RESULT_EDITED_DIR_URI)
+                }
+            }
             BrowserScreen(
                 viewModel = viewModel,
                 onPickDirectory = { pickDirectoryLauncher.launch(null) },
@@ -96,7 +118,23 @@ fun AppNav(deps: AppDependencies) {
 
             EditorScreen(
                 viewModel = viewModel,
-                onBack = { navController.popBackStack() },
+                onBack = { result ->
+                    result?.let {
+                        navController.previousBackStackEntry?.savedStateHandle?.set(
+                            RESULT_EDITED_ORIGINAL_URI,
+                            it.originalUri?.toString()
+                        )
+                        navController.previousBackStackEntry?.savedStateHandle?.set(
+                            RESULT_EDITED_CURRENT_URI,
+                            it.currentUri?.toString()
+                        )
+                        navController.previousBackStackEntry?.savedStateHandle?.set(
+                            RESULT_EDITED_DIR_URI,
+                            it.dirUri?.toString()
+                        )
+                    }
+                    navController.popBackStack()
+                },
                 onOpenTemplates = {
                     navController.navigate("$ROUTE_TEMPLATES?mode=pick")
                 }

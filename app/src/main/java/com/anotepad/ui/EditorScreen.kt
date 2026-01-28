@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -41,13 +42,14 @@ import androidx.core.text.util.LinkifyCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.anotepad.R
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditorScreen(
     viewModel: EditorViewModel,
-    onBack: () -> Unit,
+    onBack: (EditorSaveResult?) -> Unit,
     onOpenTemplates: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
@@ -57,6 +59,7 @@ fun EditorScreen(
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val backgroundColor = MaterialTheme.colorScheme.surface.toArgb()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val scope = rememberCoroutineScope()
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -92,7 +95,14 @@ fun EditorScreen(
                     Text(text = name)
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                val result = viewModel.saveAndGetResult()
+                                onBack(result)
+                            }
+                        }
+                    ) {
                         Icon(
                             Icons.Default.ArrowBack,
                             contentDescription = stringResource(id = R.string.action_back)
