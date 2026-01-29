@@ -6,11 +6,14 @@ import androidx.lifecycle.viewModelScope
 import com.anotepad.data.AppPreferences
 import com.anotepad.data.PreferencesRepository
 import com.anotepad.sync.DriveAuthManager
+import com.anotepad.sync.DriveApiException
 import com.anotepad.sync.DriveClient
 import com.anotepad.sync.DriveFolder
+import com.anotepad.sync.DriveNetworkException
 import com.anotepad.sync.SyncRepository
 import com.anotepad.sync.SyncScheduler
 import com.anotepad.sync.SyncState
+import com.anotepad.sync.userMessage
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -169,7 +172,13 @@ class SyncViewModel(
                     page = result.nextPageToken
                 } while (!page.isNullOrBlank())
                 updateFolderState(available = folders, isLoading = false)
-            } catch (error: Exception) {
+            } catch (error: DriveApiException) {
+                val detail = error.userMessage()
+                val message = detail?.let { "Drive error ${error.code}: $it" } ?: "Drive error ${error.code}"
+                updateFolderState(isLoading = false, error = message)
+            } catch (_: DriveNetworkException) {
+                updateFolderState(isLoading = false, error = "Network error")
+            } catch (_: Exception) {
                 updateFolderState(isLoading = false, error = "Failed to load folders")
             }
         }
@@ -195,7 +204,13 @@ class SyncViewModel(
                 syncRepository.resetForNewFolder(folder.id, folder.name)
                 refreshFolderMeta()
                 syncScheduler.scheduleDebounced()
-            } catch (error: Exception) {
+            } catch (error: DriveApiException) {
+                val detail = error.userMessage()
+                val message = detail?.let { "Drive error ${error.code}: $it" } ?: "Drive error ${error.code}"
+                updateFolderState(error = message)
+            } catch (_: DriveNetworkException) {
+                updateFolderState(error = "Network error")
+            } catch (_: Exception) {
                 updateFolderState(error = "Failed to create folder")
             }
         }

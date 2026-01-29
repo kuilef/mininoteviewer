@@ -41,7 +41,6 @@ class SyncEngine(
         syncRepository.setSyncStatus(SyncState.RUNNING, "Syncing...")
 
         val folderId = ensureDriveFolder(token, prefs)
-            ?: return SyncResult.Failure(authError = false)
 
         pushLocalChanges(token, prefs, rootUri, folderId)
         pullRemoteChanges(token, prefs, rootUri, folderId)
@@ -54,20 +53,15 @@ class SyncEngine(
         return SyncResult.Success
     }
 
-    private suspend fun ensureDriveFolder(token: String, prefs: AppPreferences): String? {
+    private suspend fun ensureDriveFolder(token: String, prefs: AppPreferences): String {
         val storedId = syncRepository.getDriveFolderId()
         if (!storedId.isNullOrBlank()) return storedId
         val folderName = syncRepository.getDriveFolderName()
             ?: prefs.driveSyncFolderName
-        return try {
-            val folder = driveClient.createFolder(token, folderName, null)
-            syncRepository.setDriveFolderId(folder.id)
-            syncRepository.setDriveFolderName(folder.name)
-            folder.id
-        } catch (error: Exception) {
-            syncRepository.setSyncStatus(SyncState.ERROR, "Failed to create Drive folder")
-            null
-        }
+        val folder = driveClient.createFolder(token, folderName, null)
+        syncRepository.setDriveFolderId(folder.id)
+        syncRepository.setDriveFolderName(folder.name)
+        return folder.id
     }
 
     private suspend fun pushLocalChanges(

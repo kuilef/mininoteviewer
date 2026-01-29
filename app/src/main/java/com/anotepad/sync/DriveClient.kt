@@ -309,4 +309,22 @@ class DriveClient(
 
 class DriveApiException(val code: Int, val errorBody: String?) : IOException()
 
+fun DriveApiException.userMessage(): String? {
+    val body = errorBody?.ifBlank { null } ?: return null
+    return runCatching {
+        val error = JSONObject(body).optJSONObject("error") ?: return@runCatching null
+        val message = error.optString("message").ifBlank { null }
+        val reason = error.optJSONArray("errors")
+            ?.optJSONObject(0)
+            ?.optString("reason")
+            ?.ifBlank { null }
+        when {
+            !message.isNullOrBlank() && !reason.isNullOrBlank() -> "$message ($reason)"
+            !message.isNullOrBlank() -> message
+            !reason.isNullOrBlank() -> reason
+            else -> null
+        }
+    }.getOrNull()
+}
+
 class DriveNetworkException(cause: IOException) : IOException(cause)

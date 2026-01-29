@@ -46,8 +46,13 @@ class DriveSyncWorker(
         } catch (error: DriveApiException) {
             val retryable = error.code == 429 || error.code >= 500
             val auth = error.code == 401 || error.code == 403
-            val message = if (auth) "Authorization required" else "Drive error ${error.code}"
-            logger.log("sync_error code=${error.code}")
+            val detail = error.userMessage()
+            val message = when {
+                auth -> detail?.let { "Authorization required: $it" } ?: "Authorization required"
+                detail != null -> "Drive error ${error.code}: $detail"
+                else -> "Drive error ${error.code}"
+            }
+            logger.log("sync_error code=${error.code} detail=${detail ?: "none"}")
             syncRepository.setSyncStatus(SyncState.ERROR, message)
             when {
                 auth -> Result.failure()
