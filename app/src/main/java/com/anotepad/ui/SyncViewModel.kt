@@ -11,6 +11,8 @@ import com.anotepad.sync.DriveFolder
 import com.anotepad.sync.SyncRepository
 import com.anotepad.sync.SyncScheduler
 import com.anotepad.sync.SyncState
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.ApiException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -78,8 +80,20 @@ class SyncViewModel(
 
     fun signInIntent(): Intent = authManager.signInIntent()
 
-    fun handleSignInResult() {
-        refreshAuthState()
+    fun handleSignInResult(data: Intent?) {
+        if (data == null) {
+            updateFolderState(error = "Sign-in canceled")
+            refreshAuthState()
+            return
+        }
+        try {
+            GoogleSignIn.getSignedInAccountFromIntent(data).getResult(ApiException::class.java)
+            updateFolderState(error = null)
+            refreshAuthState()
+        } catch (_: ApiException) {
+            updateFolderState(error = "Sign-in failed")
+            refreshAuthState()
+        }
     }
 
     fun signOut() {

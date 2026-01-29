@@ -51,7 +51,7 @@ fun SyncScreen(viewModel: SyncViewModel, onBack: () -> Unit) {
     val signInLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
-        viewModel.handleSignInResult()
+        viewModel.handleSignInResult(it.data)
     }
 
     if (showFolderPicker) {
