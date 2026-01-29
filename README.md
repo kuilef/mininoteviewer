@@ -3,12 +3,13 @@
 Minimal local note app for Android built with Kotlin 2.0 and Jetpack Compose. It works directly with files in a folder you choose (SAF), so notes are just `.txt` or `.md` files.
 
 ## Features and advantages
+- Synchronization with **Google Drive**
+- **Undo/redo controls**: on-screen undo/redo buttons (Ctrl+Z / Ctrl+Shift+Z); redo is available only after an undo.
 - Folder-based workflow: pick a root directory and browse subfolders; create folders and notes inside it.
 - Plain-text first: supports `.txt` and `.md` and keeps notes readable outside the app.
 - Fast browsing: batched listing with a small cache; list view or feed view with inline previews.
 - Powerful search: recursive search inside the chosen tree with optional regex and contextual snippets.
 - Smooth editing: auto-save with debounce, manual save button, and save-on-background.
-- **Undo/redo controls**: on-screen undo/redo buttons (Ctrl+Z / Ctrl+Shift+Z); redo is available only after an undo.
 - Smart file naming: first line becomes the filename for new notes; optional "sync title" keeps name updated.
 - Templates: reusable snippets (plain, time-based, numbered); insert on demand; auto-insert a date/time template for new notes.
 - Customization: font size controls, sort order, default extension, and linkify toggles (web/email/phone).
@@ -20,6 +21,7 @@ Minimal local note app for Android built with Kotlin 2.0 and Jetpack Compose. It
 - **Editor**: `EditorViewModel` keeps state, performs debounced auto-save, creates a new file on first save, and optionally renames the file based on the first line (sync title).
 - **Search**: `SearchViewModel` walks the tree, reads each note, and matches either a plain query or a regex; results include a short snippet.
 - **Templates & preferences**: templates and settings live in DataStore; templates can format current time or auto-numbered items.
+- **Drive sync**: WorkManager runs a periodic sync (every 8 hours) and schedules a debounced sync about 45 seconds after local saves. Sync respects Wi-Fi/charging/battery constraints and can be triggered manually from settings.
 
 ## Limitations
 - No encrypted file support (unlike Tombo).
@@ -39,6 +41,7 @@ Minimal local note app for Android built with Kotlin 2.0 and Jetpack Compose. It
     - `ui/` — Compose screens and ViewModels
     - `data/` — DataStore models and repositories
     - `file/` — SAF file access
+    - `sync/` — Drive auth/client, sync engine, WorkManager workers
   - `src/main/res/` — strings, themes
 - `build.gradle.kts`, `settings.gradle.kts` — build configuration
 
