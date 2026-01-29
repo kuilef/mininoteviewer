@@ -20,5 +20,5 @@ data class AppPreferences(
     val driveSyncChargingOnly: Boolean = false,
     val driveSyncPaused: Boolean = false,
     val driveSyncIgnoreRemoteDeletes: Boolean = false,
-    val driveSyncFolderName: String = "MiniNoteViewer"
+    val driveSyncFolderName: String = "Anotepad"
 )
