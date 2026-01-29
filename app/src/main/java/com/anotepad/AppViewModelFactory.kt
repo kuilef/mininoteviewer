@@ -13,7 +13,11 @@ class AppViewModelFactory(private val deps: AppDependencies) : ViewModelProvider
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when (modelClass) {
-            BrowserViewModel::class.java -> BrowserViewModel(deps.preferencesRepository, deps.fileRepository)
+            BrowserViewModel::class.java -> BrowserViewModel(
+                deps.preferencesRepository,
+                deps.fileRepository,
+                deps.syncRepository
+            )
             EditorViewModel::class.java -> EditorViewModel(
                 deps.preferencesRepository,
                 deps.fileRepository,

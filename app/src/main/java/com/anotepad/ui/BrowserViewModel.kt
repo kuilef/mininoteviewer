@@ -9,6 +9,8 @@ import com.anotepad.data.PreferencesRepository
 import com.anotepad.file.ChildBatch
 import com.anotepad.file.DocumentNode
 import com.anotepad.file.FileRepository
+import com.anotepad.sync.SyncRepository
+import com.anotepad.sync.SyncState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -45,7 +47,8 @@ data class BrowserState(
 
 class BrowserViewModel(
     private val preferencesRepository: PreferencesRepository,
-    private val fileRepository: FileRepository
+    private val fileRepository: FileRepository,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
     private val listBatchSize = 50
     private val listFirstBatchSize = 10
@@ -55,6 +58,7 @@ class BrowserViewModel(
     private val feedPageSize = 10
     private var feedGeneration = 0
     private var refreshJob: Job? = null
+    private var lastSyncedAtSeen: Long? = null
 
     init {
         viewModelScope.launch {
@@ -94,6 +98,16 @@ class BrowserViewModel(
                     setRoot(root)
                 } else if (prevSortOrder != prefs.fileSortOrder) {
                     refresh()
+                }
+            }
+        }
+        viewModelScope.launch {
+            syncRepository.syncStatusFlow().collectLatest { status ->
+                val lastSyncedAt = status.lastSyncedAt ?: return@collectLatest
+                val previous = lastSyncedAtSeen
+                lastSyncedAtSeen = lastSyncedAt
+                if (previous != null && lastSyncedAt != previous && status.state == SyncState.SYNCED) {
+                    refresh(force = true)
                 }
             }
         }
