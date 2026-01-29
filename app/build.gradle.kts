@@ -30,6 +30,17 @@ android {
         compose = true
     }
 
+    sourceSets {
+        getByName("debug").java.srcDirs(
+            "build/generated/ksp/debug/kotlin",
+            "build/generated/ksp/debug/java"
+        )
+        getByName("release").java.srcDirs(
+            "build/generated/ksp/release/kotlin",
+            "build/generated/ksp/release/java"
+        )
+    }
+
     //composeOptions {
     //    kotlinCompilerExtensionVersion = "1.5.15"
     //}
