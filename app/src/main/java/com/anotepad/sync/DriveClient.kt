@@ -284,6 +284,8 @@ class DriveClient(
                     }
                     response.body?.string().orEmpty()
                 }
+            } catch (api: DriveApiException) {
+                throw api
             } catch (io: IOException) {
                 throw DriveNetworkException(io)
             }
