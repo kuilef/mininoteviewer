@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">anotepad</string>
+    <string name="app_name">Anotepad</string>
     <string name="action_pick_folder">Pick folder</string>
     <string name="action_new_folder">New folder</string>
     <string name="action_new_note">New note</string>

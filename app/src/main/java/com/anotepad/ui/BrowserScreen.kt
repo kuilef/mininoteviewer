@@ -81,7 +81,7 @@ fun BrowserScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(id = R.string.app_name)) },
+                title = {},
                 navigationIcon = {
                     // Никакого null: просто условно рисуем кнопку внутри composable-лямбды
                     if (state.dirStack.size > 1) {
