@@ -86,7 +86,7 @@ class DriveClient(
             }
         }
         val url = "$DRIVE_BASE/files?fields=id,name"
-        val json = requestJson(token, url, body = body)
+        val json = requestJson(token, url, method = "POST", body = body)
         return DriveFolder(id = json.getString("id"), name = json.optString("name"))
     }
 
