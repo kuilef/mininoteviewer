@@ -1,4 +1,4 @@
-# anotepad
+# Anotepad
 
 Minimal local note app for Android built with Kotlin 2.0 and Jetpack Compose. It works directly with files in a folder you choose (SAF), so notes are just `.txt` or `.md` files.
 
