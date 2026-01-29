@@ -327,4 +327,6 @@ fun DriveApiException.userMessage(): String? {
     }.getOrNull()
 }
 
-class DriveNetworkException(cause: IOException) : IOException(cause)
+class DriveNetworkException(cause: IOException) : IOException(cause) {
+    val detail: String? = cause.message?.ifBlank { null }
+}

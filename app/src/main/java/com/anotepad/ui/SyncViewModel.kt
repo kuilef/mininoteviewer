@@ -176,8 +176,9 @@ class SyncViewModel(
                 val detail = error.userMessage()
                 val message = detail?.let { "Drive error ${error.code}: $it" } ?: "Drive error ${error.code}"
                 updateFolderState(isLoading = false, error = message)
-            } catch (_: DriveNetworkException) {
-                updateFolderState(isLoading = false, error = "Network error")
+            } catch (error: DriveNetworkException) {
+                val message = error.detail?.let { "Network error: $it" } ?: "Network error"
+                updateFolderState(isLoading = false, error = message)
             } catch (_: Exception) {
                 updateFolderState(isLoading = false, error = "Failed to load folders")
             }
@@ -208,8 +209,9 @@ class SyncViewModel(
                 val detail = error.userMessage()
                 val message = detail?.let { "Drive error ${error.code}: $it" } ?: "Drive error ${error.code}"
                 updateFolderState(error = message)
-            } catch (_: DriveNetworkException) {
-                updateFolderState(error = "Network error")
+            } catch (error: DriveNetworkException) {
+                val message = error.detail?.let { "Network error: $it" } ?: "Network error"
+                updateFolderState(error = message)
             } catch (_: Exception) {
                 updateFolderState(error = "Failed to create folder")
             }

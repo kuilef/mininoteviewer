@@ -40,8 +40,10 @@ class DriveSyncWorker(
                 }
             }
         } catch (error: DriveNetworkException) {
-            logger.log("sync_retry network_error")
-            syncRepository.setSyncStatus(SyncState.ERROR, "Network error, will retry")
+            val detail = error.detail
+            val message = detail?.let { "Network error: $it" } ?: "Network error, will retry"
+            logger.log("sync_retry network_error detail=${detail ?: "none"}")
+            syncRepository.setSyncStatus(SyncState.ERROR, message)
             Result.retry()
         } catch (error: DriveApiException) {
             val retryable = error.code == 429 || error.code >= 500
