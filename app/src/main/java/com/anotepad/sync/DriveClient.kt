@@ -140,7 +140,7 @@ class DriveClient(
         return withContext(Dispatchers.IO) {
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw DriveApiException(response.code, response.body?.string())
+                    throw DriveApiException(response.code, response.body?.string(), url, "GET")
                 }
                 response.body?.string() ?: ""
             }
@@ -218,9 +218,10 @@ class DriveClient(
         return withContext(Dispatchers.IO) {
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw DriveApiException(response.code, response.body?.string())
+                    throw DriveApiException(response.code, response.body?.string(), url, method)
                 }
-                response.header("Location") ?: throw DriveApiException(response.code, "Missing upload location")
+                response.header("Location")
+                    ?: throw DriveApiException(response.code, "Missing upload location", url, method)
             }
         }
     }
@@ -241,7 +242,7 @@ class DriveClient(
         return withContext(Dispatchers.IO) {
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    throw DriveApiException(response.code, response.body?.string())
+                    throw DriveApiException(response.code, response.body?.string(), sessionUrl, "PUT")
                 }
                 val json = JSONObject(response.body?.string().orEmpty())
                 parseDriveFile(json)
@@ -280,7 +281,7 @@ class DriveClient(
             try {
                 httpClient.newCall(builder.build()).execute().use { response ->
                     if (!response.isSuccessful) {
-                        throw DriveApiException(response.code, response.body?.string())
+                        throw DriveApiException(response.code, response.body?.string(), url, method)
                     }
                     response.body?.string().orEmpty()
                 }
@@ -309,7 +310,12 @@ class DriveClient(
     }
 }
 
-class DriveApiException(val code: Int, val errorBody: String?) : IOException()
+class DriveApiException(
+    val code: Int,
+    val errorBody: String?,
+    val url: String? = null,
+    val method: String? = null
+) : IOException()
 
 fun DriveApiException.userMessage(): String? {
     val body = errorBody?.ifBlank { null } ?: return null

@@ -56,7 +56,10 @@ class DriveSyncWorker(
                 detail != null -> "Drive error ${error.code}: $detail"
                 else -> "Drive error ${error.code}"
             }
-            logger.log("sync_error code=${error.code} detail=${detail ?: "none"}")
+            logger.log(
+                "sync_error code=${error.code} detail=${detail ?: "none"} " +
+                    "method=${error.method ?: "unknown"} url=${error.url ?: "unknown"}"
+            )
             syncRepository.setSyncStatus(SyncState.ERROR, message)
             when {
                 auth -> Result.failure()
