@@ -23,8 +23,8 @@ android {
         applicationId = "com.anotepad"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
         buildConfigField("String", "DRIVE_PICKER_API_KEY", "\"$drivePickerApiKey\"")
         buildConfigField("String", "DRIVE_PICKER_APP_ID", "\"$drivePickerAppId\"")
     }
