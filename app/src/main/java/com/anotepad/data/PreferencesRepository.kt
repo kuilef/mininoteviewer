@@ -66,7 +66,7 @@ class PreferencesRepository(private val context: Context) {
             driveSyncChargingOnly = prefs[Keys.DRIVE_SYNC_CHARGING_ONLY] ?: false,
             driveSyncPaused = prefs[Keys.DRIVE_SYNC_PAUSED] ?: false,
             driveSyncIgnoreRemoteDeletes = prefs[Keys.DRIVE_SYNC_IGNORE_REMOTE_DELETES] ?: false,
-            driveSyncFolderName = prefs[Keys.DRIVE_SYNC_FOLDER_NAME] ?: "MiniNoteViewer"
+            driveSyncFolderName = prefs[Keys.DRIVE_SYNC_FOLDER_NAME] ?: "Anotepad"
         )
     }
 

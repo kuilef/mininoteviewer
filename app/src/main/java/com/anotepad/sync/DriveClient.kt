@@ -102,8 +102,11 @@ class DriveClient(
         val metadata = JSONObject().apply {
             put("name", name)
             put("mimeType", mimeType)
-            put("parents", JSONArray().put(parentId))
             put("appProperties", JSONObject(appProperties))
+            if (fileId == null) {
+                // Parents can be set on create; updates must use addParents/removeParents.
+                put("parents", JSONArray().put(parentId))
+            }
         }
         val uploadUrl = if (fileId == null) {
             "$UPLOAD_BASE/files?uploadType=resumable&fields=id,name,mimeType,modifiedTime,parents,trashed,appProperties"
