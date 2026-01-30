@@ -62,7 +62,7 @@ class PreferencesRepository(private val context: Context) {
             autoInsertTemplate = prefs[Keys.AUTO_INSERT_TEMPLATE] ?: "yyyy-MM-dd",
             defaultFileExtension = defaultExt,
             driveSyncEnabled = prefs[Keys.DRIVE_SYNC_ENABLED] ?: false,
-            driveSyncWifiOnly = prefs[Keys.DRIVE_SYNC_WIFI_ONLY] ?: true,
+            driveSyncWifiOnly = prefs[Keys.DRIVE_SYNC_WIFI_ONLY] ?: false,
             driveSyncChargingOnly = prefs[Keys.DRIVE_SYNC_CHARGING_ONLY] ?: false,
             driveSyncPaused = prefs[Keys.DRIVE_SYNC_PAUSED] ?: false,
             driveSyncIgnoreRemoteDeletes = prefs[Keys.DRIVE_SYNC_IGNORE_REMOTE_DELETES] ?: false,
