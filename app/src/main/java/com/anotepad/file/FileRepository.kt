@@ -241,6 +241,19 @@ class FileRepository(private val context: Context) {
         deleted
     }
 
+    suspend fun deleteDirectoryByRelativePath(rootTreeUri: Uri, relativePath: String): Boolean =
+        withContext(Dispatchers.IO) {
+            if (relativePath.isBlank()) return@withContext false
+            val dirUri = resolveDirByRelativePath(rootTreeUri, relativePath, create = false)
+                ?: return@withContext false
+            val dir = resolveDirDocumentFile(dirUri) ?: return@withContext false
+            val deleted = dir.delete()
+            if (deleted) {
+                invalidateListCache(rootTreeUri)
+            }
+            deleted
+        }
+
     suspend fun copyFile(fileUri: Uri, targetDirUri: Uri, displayName: String): Uri? =
         withContext(Dispatchers.IO) {
             val targetDir = resolveDirDocumentFile(targetDirUri) ?: return@withContext null

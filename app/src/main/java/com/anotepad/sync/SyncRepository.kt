@@ -28,8 +28,12 @@ class SyncRepository(private val db: SyncDatabase) {
 
     suspend fun getFolderByDriveId(driveFolderId: String): SyncFolderEntity? = folderDao.getByDriveId(driveFolderId)
 
+    suspend fun getAllFolders(): List<SyncFolderEntity> = folderDao.getAll()
+
     suspend fun upsertFolder(path: String, driveFolderId: String) =
         folderDao.upsert(SyncFolderEntity(path, driveFolderId))
+
+    suspend fun deleteFolderByPath(path: String) = folderDao.deleteByPath(path)
 
     suspend fun clearFolders() = folderDao.deleteAll()
 

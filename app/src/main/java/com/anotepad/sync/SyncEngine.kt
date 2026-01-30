@@ -203,8 +203,11 @@ class SyncEngine(
                         syncRepository.upsertFolder(nextPath, file.id)
                         queue.add(DriveFolderNode(file.id, nextPath))
                     } else if (isSupportedNote(file.name)) {
-                        val relativePath = file.appProperties["localRelativePath"]
-                            ?: if (current.relativePath.isBlank()) file.name else "${current.relativePath}/${file.name}"
+                        val relativePath = if (current.relativePath.isBlank()) {
+                            file.name
+                        } else {
+                            "${current.relativePath}/${file.name}"
+                        }
                         pullFileIfNeeded(token, rootUri, relativePath, file)
                     }
                 }
@@ -229,19 +232,68 @@ class SyncEngine(
             handleRemoteDeletion(prefs, rootUri, file.id)
             return
         }
-        val appPath = file.appProperties["localRelativePath"]
-        var parentMapping: String? = null
-        for (parentId in file.parents) {
-            val mapping = syncRepository.getFolderByDriveId(parentId)?.localRelativePath
-            if (mapping != null) {
-                parentMapping = mapping
-                break
-            }
+        if (file.mimeType == DRIVE_FOLDER_MIME) {
+            handleRemoteFolderChange(rootUri, driveFolderId, file)
+            return
         }
-        val resolvedPath = appPath ?: parentMapping?.let { "$it/${file.name}" } ?: file.name
-        val allowed = appPath != null || parentMapping != null || file.parents.contains(driveFolderId)
-        if (!allowed || !isSupportedNote(file.name)) return
-        pullFileIfNeeded(token, rootUri, resolvedPath, file)
+        handleRemoteFileChange(token, rootUri, driveFolderId, file)
+    }
+
+    private suspend fun handleRemoteFileChange(
+        token: String,
+        rootUri: Uri,
+        driveFolderId: String,
+        remoteFile: DriveFile
+    ) {
+        if (!isSupportedNote(remoteFile.name)) return
+        val existingById = syncRepository.getItemByDriveId(remoteFile.id)
+        val parentPath = resolveParentPath(remoteFile.parents, driveFolderId)
+        val resolvedPath = when {
+            parentPath != null -> {
+                if (parentPath.isBlank()) remoteFile.name else "$parentPath/${remoteFile.name}"
+            }
+            existingById != null -> {
+                val parent = existingById.localRelativePath.substringBeforeLast('/', "")
+                if (parent.isBlank()) remoteFile.name else "$parent/${remoteFile.name}"
+            }
+            else -> remoteFile.appProperties["localRelativePath"]
+        }
+        if (resolvedPath.isNullOrBlank()) return
+        if (existingById != null && existingById.localRelativePath != resolvedPath) {
+            val movedUri = moveLocalFile(rootUri, existingById.localRelativePath, resolvedPath)
+            val updated = existingById.copy(
+                localRelativePath = resolvedPath,
+                localLastModified = movedUri?.let { fileRepository.getLastModified(it) }
+                    ?: existingById.localLastModified,
+                localSize = movedUri?.let { fileRepository.getSize(it) } ?: existingById.localSize
+            )
+            syncRepository.deleteItemByPath(existingById.localRelativePath)
+            syncRepository.upsertItem(updated)
+        }
+        pullFileIfNeeded(token, rootUri, resolvedPath, remoteFile)
+    }
+
+    private suspend fun handleRemoteFolderChange(
+        rootUri: Uri,
+        driveFolderId: String,
+        folder: DriveFile
+    ) {
+        if (folder.id == driveFolderId) return
+        val parentPath = resolveParentPath(folder.parents, driveFolderId) ?: return
+        val newPath = if (parentPath.isBlank()) folder.name else "$parentPath/${folder.name}"
+        val existing = syncRepository.getFolderByDriveId(folder.id)
+        if (existing == null) {
+            fileRepository.resolveDirByRelativePath(rootUri, newPath, create = true)
+            syncRepository.upsertFolder(newPath, folder.id)
+            return
+        }
+        if (existing.localRelativePath == newPath) {
+            fileRepository.resolveDirByRelativePath(rootUri, newPath, create = true)
+            return
+        }
+        applyFolderMove(rootUri, existing.localRelativePath, newPath)
+        syncRepository.deleteFolderByPath(existing.localRelativePath)
+        syncRepository.upsertFolder(newPath, folder.id)
     }
 
     private suspend fun pullFileIfNeeded(
@@ -306,8 +358,21 @@ class SyncEngine(
         }
     }
 
-    private suspend fun handleRemoteDeletion(prefs: AppPreferences, rootUri: Uri, driveFileId: String) {
+    private suspend fun handleRemoteDeletion(
+        prefs: AppPreferences,
+        rootUri: Uri,
+        driveFileId: String
+    ) {
         if (prefs.driveSyncIgnoreRemoteDeletes) return
+        val folder = syncRepository.getFolderByDriveId(driveFileId)
+        if (folder != null) {
+            handleRemoteFolderDeletion(rootUri, folder.localRelativePath)
+            return
+        }
+        handleRemoteFileDeletion(rootUri, driveFileId)
+    }
+
+    private suspend fun handleRemoteFileDeletion(rootUri: Uri, driveFileId: String) {
         val existing = syncRepository.getItemByDriveId(driveFileId) ?: return
         val localUri = fileRepository.findFileByRelativePath(rootUri, existing.localRelativePath)
         val localModified = localUri?.let { fileRepository.getLastModified(it) } ?: 0L
@@ -324,6 +389,37 @@ class SyncEngine(
         }
         moveLocalToTrash(rootUri, existing.localRelativePath)
         syncRepository.deleteItemByPath(existing.localRelativePath)
+    }
+
+    private suspend fun handleRemoteFolderDeletion(
+        rootUri: Uri,
+        folderPath: String
+    ) {
+        val items = syncRepository.getAllItems()
+            .filter { it.localRelativePath == folderPath || it.localRelativePath.startsWith("$folderPath/") }
+        for (item in items) {
+            val localUri = fileRepository.findFileByRelativePath(rootUri, item.localRelativePath)
+            val localModified = localUri?.let { fileRepository.getLastModified(it) } ?: 0L
+            val lastSynced = item.lastSyncedAt ?: 0L
+            if (localModified > lastSynced) {
+                syncRepository.upsertItem(
+                    item.copy(
+                        driveFileId = null,
+                        driveModifiedTime = null,
+                        syncState = SyncItemState.PENDING_UPLOAD.name
+                    )
+                )
+            } else {
+                moveLocalToTrash(rootUri, item.localRelativePath)
+                syncRepository.deleteItemByPath(item.localRelativePath)
+            }
+        }
+        val folders = syncRepository.getAllFolders()
+            .filter { it.localRelativePath == folderPath || it.localRelativePath.startsWith("$folderPath/") }
+        for (folder in folders) {
+            syncRepository.deleteFolderByPath(folder.localRelativePath)
+        }
+        fileRepository.deleteDirectoryByRelativePath(rootUri, folderPath)
     }
 
     private suspend fun ensureDriveFolderForPath(token: String, rootFolderId: String, relativePath: String): String {
@@ -355,6 +451,62 @@ class SyncEngine(
         val newName = buildConflictName("$trashDir/$name")
         fileRepository.copyFile(fileUri, trashUri, newName.substringAfterLast('/'))
         fileRepository.deleteFile(fileUri)
+    }
+
+    private suspend fun applyFolderMove(rootUri: Uri, oldPath: String, newPath: String) {
+        if (oldPath == newPath) return
+        val items = syncRepository.getAllItems()
+            .filter { it.localRelativePath == oldPath || it.localRelativePath.startsWith("$oldPath/") }
+        for (item in items) {
+            val targetPath = replacePathPrefix(item.localRelativePath, oldPath, newPath)
+            val movedUri = moveLocalFile(rootUri, item.localRelativePath, targetPath)
+            val updated = item.copy(
+                localRelativePath = targetPath,
+                localLastModified = movedUri?.let { fileRepository.getLastModified(it) } ?: item.localLastModified,
+                localSize = movedUri?.let { fileRepository.getSize(it) } ?: item.localSize
+            )
+            syncRepository.deleteItemByPath(item.localRelativePath)
+            syncRepository.upsertItem(updated)
+        }
+        val folders = syncRepository.getAllFolders()
+            .filter { it.localRelativePath == oldPath || it.localRelativePath.startsWith("$oldPath/") }
+        for (folder in folders) {
+            val targetPath = replacePathPrefix(folder.localRelativePath, oldPath, newPath)
+            syncRepository.deleteFolderByPath(folder.localRelativePath)
+            syncRepository.upsertFolder(targetPath, folder.driveFolderId)
+            fileRepository.resolveDirByRelativePath(rootUri, targetPath, create = true)
+        }
+        fileRepository.deleteDirectoryByRelativePath(rootUri, oldPath)
+    }
+
+    private suspend fun moveLocalFile(rootUri: Uri, fromPath: String, toPath: String): Uri? {
+        val fromUri = fileRepository.findFileByRelativePath(rootUri, fromPath) ?: return null
+        val targetDir = toPath.substringBeforeLast('/', "")
+        val targetDirUri = fileRepository.resolveDirByRelativePath(rootUri, targetDir, create = true) ?: return null
+        val name = toPath.substringAfterLast('/')
+        return fileRepository.moveFile(fromUri, targetDirUri, name)
+    }
+
+    private suspend fun resolveParentPath(parents: List<String>, driveFolderId: String): String? {
+        for (parentId in parents) {
+            val mapping = syncRepository.getFolderByDriveId(parentId)?.localRelativePath
+            if (mapping != null) {
+                return mapping
+            }
+        }
+        return if (parents.contains(driveFolderId)) "" else null
+    }
+
+    private fun replacePathPrefix(path: String, oldPrefix: String, newPrefix: String): String {
+        if (oldPrefix.isBlank()) return path
+        val suffix = path.removePrefix(oldPrefix).trimStart('/')
+        return if (suffix.isBlank()) {
+            newPrefix
+        } else if (newPrefix.isBlank()) {
+            suffix
+        } else {
+            "$newPrefix/$suffix"
+        }
     }
 
     private fun buildConflictName(relativePath: String): String {

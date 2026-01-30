@@ -29,6 +29,9 @@ interface SyncItemDao {
 
 @Dao
 interface SyncFolderDao {
+    @Query("SELECT * FROM sync_folders")
+    suspend fun getAll(): List<SyncFolderEntity>
+
     @Query("SELECT * FROM sync_folders WHERE localRelativePath = :path LIMIT 1")
     suspend fun getByPath(path: String): SyncFolderEntity?
 
@@ -37,6 +40,9 @@ interface SyncFolderDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(folder: SyncFolderEntity)
+
+    @Query("DELETE FROM sync_folders WHERE localRelativePath = :path")
+    suspend fun deleteByPath(path: String)
 
     @Query("DELETE FROM sync_folders")
     suspend fun deleteAll()
