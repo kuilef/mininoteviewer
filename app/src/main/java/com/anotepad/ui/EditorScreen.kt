@@ -116,18 +116,6 @@ fun EditorScreen(
         editTextRef?.let { focusAndShowKeyboard(it) }
     }
 
-    LaunchedEffect(state.loadToken, state.moveCursorToEndOnLoad, editTextRef) {
-        if (state.moveCursorToEndOnLoad && lastCursorToken != state.loadToken) {
-            editTextRef?.let { editText ->
-                editText.post {
-                    val length = editText.text?.length ?: 0
-                    editText.setSelection(length)
-                }
-                lastCursorToken = state.loadToken
-            }
-        }
-    }
-
     LaunchedEffect(Unit) {
         viewModel.manualSaveEvents.collect {
             showSavedBubble = true
@@ -251,8 +239,6 @@ fun EditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
@@ -262,7 +248,7 @@ fun EditorScreen(
                         setBackgroundColor(backgroundColor)
                         setTextColor(textColor)
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, state.editorFontSizeSp)
-                        setPadding(12, 12, 12, 12)
+                        setPadding(0, 0, 0, 0)
                         gravity = Gravity.TOP or Gravity.START
                         setSingleLine(false)
                         setHorizontallyScrolling(false)
@@ -327,9 +313,17 @@ fun EditorScreen(
                         ignoreChanges = true
                         val selection = editText.selectionStart
                         editText.setText(state.text)
-                        val newSelection = selection.coerceAtMost(state.text.length)
-                        editText.setSelection(newSelection)
+                        if (state.moveCursorToEndOnLoad && lastCursorToken != state.loadToken) {
+                            editText.setSelection(state.text.length)
+                            lastCursorToken = state.loadToken
+                        } else {
+                            val newSelection = selection.coerceAtMost(state.text.length)
+                            editText.setSelection(newSelection)
+                        }
                         ignoreChanges = false
+                    } else if (state.moveCursorToEndOnLoad && lastCursorToken != state.loadToken) {
+                        editText.setSelection(editText.text.length)
+                        lastCursorToken = state.loadToken
                     }
                     if (editText.currentTextColor != textColor) {
                         editText.setTextColor(textColor)
