@@ -248,11 +248,12 @@ fun EditorScreen(
                         setBackgroundColor(backgroundColor)
                         setTextColor(textColor)
                         setTextSize(TypedValue.COMPLEX_UNIT_SP, state.editorFontSizeSp)
-                        setPadding(0, 0, 0, 0)
                         gravity = Gravity.TOP or Gravity.START
                         setSingleLine(false)
                         setHorizontallyScrolling(false)
                         val density = context.resources.displayMetrics.density
+                        val paddingPx = (4f * density).roundToInt()
+                        setPadding(paddingPx, paddingPx, paddingPx, paddingPx)
                         scrollBarSize = (2f * density).roundToInt()
                         isScrollbarFadingEnabled = true
                         movementMethod = LinkMovementMethod.getInstance()
